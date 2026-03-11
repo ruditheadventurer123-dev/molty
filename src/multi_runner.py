@@ -25,14 +25,14 @@ from src.config import ensure_data_dirs, load_room_type
 from src import logger
 
 
-MAX_AGENTS_PER_IP = 5
+MAX_AGENTS_PER_IP = 50
 
 
 def load_api_keys():
     """
     Load API keys from environment.
     Priority: MR_API_KEYS (comma-separated) > MR_API_KEY (single).
-    Returns list of keys (max 5).
+    Returns list of keys (max 50).
     """
     # Multi-key format
     multi_keys = os.environ.get("MR_API_KEYS", "").strip()
@@ -98,7 +98,7 @@ def main():
     print("")
     print(f"{Fore.CYAN}{Style.BRIGHT}==========================================================")
     print(f"{Fore.CYAN}{Style.BRIGHT}      MOLTY ROYALE - MULTI-AGENT RUNNER")
-    print(f"{Fore.CYAN}{Style.BRIGHT}      Up to 5 agents - 5 API keys - 1 IP")
+    print(f"{Fore.CYAN}{Style.BRIGHT}      Up to 50 agents - 50 API keys - 1 IP")
     print(f"{Fore.CYAN}{Style.BRIGHT}==========================================================")
     print("")
 
@@ -133,13 +133,16 @@ def main():
     logger.separator("=")
 
     # ── Start Dashboard Server ─────────────────────────────────
-    try:
-        from src.dashboard.dashboard_server import start_dashboard, start_stats_emitter
-        start_dashboard()
-        start_stats_emitter()
-    except Exception as e:
-        logger.warning(f"Dashboard server failed to start: {e}")
-        logger.info("Bot will continue without dashboard.")
+    if len(api_keys) <= 10:
+        try:
+            from src.dashboard.dashboard_server import start_dashboard, start_stats_emitter
+            start_dashboard()
+            start_stats_emitter()
+        except Exception as e:
+            logger.warning(f"Dashboard server failed to start: {e}")
+            logger.info("Bot will continue without dashboard.")
+    else:
+        logger.warning(f"Dashboard web dimatikan (mode ringan). Web view memakan CPU/RAM besar untuk {len(api_keys)} bot.")
 
     # Stop event for graceful shutdown
     stop_event = threading.Event()
