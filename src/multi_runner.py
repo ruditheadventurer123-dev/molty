@@ -159,13 +159,27 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
+    # Waktu rotasi host (6 jam = 21600 detik)
+    # Gunakan rotasi modulus agar host berganti antara agen index 0, 1, dan 2 setiap 6 jam
+    HOURS_6_IN_SEC = 6 * 3600
+    current_epoch = int(time.time())
+    # Jika agent kurang dari 3, modulus sesuai panjang agent
+    pool_size = min(3, len(api_keys))
+    # Hitung putaran rotasi saat ini
+    rotation_index = (current_epoch // HOURS_6_IN_SEC) % pool_size if pool_size > 0 else 0
+
     # Spawn agent threads
     threads = []
     for i, key in enumerate(api_keys):
         label = f"Agent-{i+1}"
+        
+        # is_host flag (True ONLY if the current index matches the calculated rotation index)
+        # Note: if there's only 1 key, i == 0 will always be True
+        is_host = (i == rotation_index)
+        
         t = threading.Thread(
             target=run_agent,
-            args=(key, room_type, room_name, label, stop_event, i == 0),
+            args=(key, room_type, room_name, label, stop_event, is_host),
             name=label,
             daemon=False,
         )
