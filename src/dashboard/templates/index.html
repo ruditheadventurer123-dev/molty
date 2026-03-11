@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Molty Royale — Agent Dashboard</title>
+    <meta name="description" content="Real-time AI Agent monitoring dashboard for Molty Royale Battle Royale game">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
+    <style>
+        /* ─── Reset & Base ───────────────────────────────── */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #1c2333;
+            --bg-card: #161b22;
+            --border-primary: #30363d;
+            --border-hover: #484f58;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --accent-green: #3fb950;
+            --accent-green-dim: #238636;
+            --accent-red: #f85149;
+            --accent-red-dim: #da3633;
+            --accent-yellow: #d29922;
+            --accent-orange: #db6d28;
+            --accent-cyan: #58a6ff;
+            --accent-magenta: #bc8cff;
+            --accent-blue: #388bfd;
+            --accent-pink: #f778ba;
+            --hp-green: #3fb950;
+            --hp-yellow: #d29922;
+            --hp-red: #f85149;
+            --ep-cyan: #39d2c0;
+            --ep-blue: #58a6ff;
+            --radius: 8px;
+            --radius-lg: 12px;
+            --shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+            --transition: 0.2s ease;
+            --font-main: 'Inter', -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-primary);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--border-hover);
+        }
+
+        /* ─── Header ─────────────────────────────────────── */
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-primary);
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .header-logo .icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-magenta));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 8px rgba(88, 166, 255, 0.3);
+            }
+
+            50% {
+                box-shadow: 0 0 16px rgba(88, 166, 255, 0.6);
+            }
+        }
+
+        .header-logo h1 {
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            background: linear-gradient(90deg, var(--text-primary), var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-badge {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            animation: badge-pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes badge-pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .badge-waiting {
+            background: var(--accent-yellow);
+            color: #000;
+        }
+
+        .badge-playing {
+            background: var(--accent-green);
+            color: #000;
+        }
+
+        .badge-idle {
+            background: var(--border-primary);
+            color: var(--text-secondary);
+            animation: none;
+        }
+
+        .badge-dead {
+            background: var(--accent-red);
+            color: #fff;
+        }
+
+        .badge-searching {
+            background: var(--accent-orange);
+            color: #000;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-left: auto;
+            flex-wrap: wrap;
+        }
+
+        .header-stat {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: var(--bg-tertiary);
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border-primary);
+        }
+
+        .header-stat .value {
+            color: var(--text-primary);
+            font-weight: 700;
+        }
+
+        .header-stat .label {
+            color: var(--text-muted);
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        .header-time {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* ─── Main Layout ────────────────────────────────── */
+        .main-content {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* ─── Agent Grid ─────────────────────────────────── */
+        .agents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 12px;
+        }
+
+        /* ─── Agent Card ─────────────────────────────────── */
+        .agent-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            transition: border-color var(--transition), box-shadow var(--transition);
+        }
+
+        .agent-card:hover {
+            border-color: var(--border-hover);
+            box-shadow: var(--shadow);
+        }
+
+        .agent-card.status-playing {
+            border-top: 2px solid var(--accent-green);
+        }
+
+        .agent-card.status-waiting {
+            border-top: 2px solid var(--accent-yellow);
+        }
+
+        .agent-card.status-dead {
+            border-top: 2px solid var(--accent-red);
+            opacity: 0.7;
+        }
+
+        .agent-card.status-idle {
+            border-top: 2px solid var(--border-primary);
+        }
+
+        .agent-card.status-searching {
+            border-top: 2px solid var(--accent-orange);
+        }
+
+        /* Card Header */
+        .card-header {
+            padding: 12px 14px 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .agent-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .agent-status {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        /* Game Info */
+        .game-info {
+            padding: 0 14px 8px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .game-info .game-name {
+            color: var(--accent-cyan);
+        }
+
+        .game-info .game-stats {
+            display: flex;
+            gap: 12px;
+            margin-top: 2px;
+        }
+
+        .game-info .game-stats span {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        /* HP/EP Bars */
+        .bars-section {
+            padding: 0 14px 10px;
+        }
+
+        .stat-bar-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+
+        .bar-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            min-width: 22px;
+        }
+
+        .bar-track {
+            flex: 1;
+            height: 10px;
+            background: var(--bg-primary);
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bar-fill {
+            height: 100%;
+            border-radius: 5px;
+            transition: width 0.5s ease, background 0.5s ease;
+            position: relative;
+        }
+
+        .bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, transparent 100%);
+            border-radius: 5px;
+        }
+
+        .bar-hp {
+            background: var(--hp-green);
+        }
+
+        .bar-hp.medium {
+            background: var(--hp-yellow);
+        }
+
+        .bar-hp.low {
+            background: var(--hp-red);
+        }
+
+        .bar-ep {
+            background: linear-gradient(90deg, var(--ep-cyan), var(--ep-blue));
+        }
+
+        .bar-value {
+            font-size: 11px;
+            font-weight: 600;
+            font-family: var(--font-mono);
+            color: var(--text-secondary);
+            min-width: 55px;
+            text-align: right;
+        }
+
+        /* Stats Row */
+        .stats-row {
+            padding: 0 14px 8px;
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .stat-chip {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            background: var(--bg-primary);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-family: var(--font-mono);
+            border: 1px solid var(--border-primary);
+        }
+
+        .stat-chip .stat-icon {
+            font-size: 12px;
+        }
+
+        .stat-chip .stat-val {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .weapon-chip {
+            background: linear-gradient(135deg, rgba(188, 140, 255, 0.1), rgba(88, 166, 255, 0.1));
+            border-color: rgba(188, 140, 255, 0.3);
+            color: var(--accent-magenta);
+        }
+
+        /* Region Info */
+        .region-info {
+            padding: 4px 14px 8px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-secondary);
+        }
+
+        .region-name {
+            color: var(--accent-blue);
+            font-weight: 600;
+        }
+
+        .terrain-badge {
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: lowercase;
+        }
+
+        .terrain-plains {
+            background: rgba(63, 185, 80, 0.15);
+            color: var(--accent-green);
+        }
+
+        .terrain-forest {
+            background: rgba(63, 185, 80, 0.25);
+            color: #56d364;
+        }
+
+        .terrain-hills {
+            background: rgba(210, 153, 34, 0.2);
+            color: var(--accent-yellow);
+        }
+
+        .terrain-ruins {
+            background: rgba(139, 148, 158, 0.2);
+            color: var(--text-secondary);
+        }
+
+        .terrain-water {
+            background: rgba(88, 166, 255, 0.2);
+            color: var(--accent-cyan);
+        }
+
+        /* Current Action */
+        .action-info {
+            padding: 4px 14px 8px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .action-info .action-icon {
+            margin-right: 4px;
+        }
+
+        .action-info .action-text {
+            color: var(--accent-magenta);
+            font-weight: 500;
+        }
+
+        .action-info .countdown {
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            font-size: 10px;
+        }
+
+        /* Inventory */
+        .inventory-section {
+            padding: 4px 14px 8px;
+        }
+
+        .inventory-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--accent-orange);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 3px;
+        }
+
+        .inventory-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+
+        .inventory-item {
+            font-size: 11px;
+            color: var(--text-secondary);
+            padding: 1px 0;
+        }
+
+        .inventory-empty {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        /* Bottom Panels (Enemies/Monsters/Items) */
+        .bottom-panels {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0;
+            border-top: 1px solid var(--border-primary);
+        }
+
+        .bottom-panel {
+            padding: 6px 8px;
+            border-right: 1px solid var(--border-primary);
+            min-height: 60px;
+        }
+
+        .bottom-panel:last-child {
+            border-right: none;
+        }
+
+        .panel-title {
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .panel-enemies .panel-title {
+            color: var(--accent-red);
+        }
+
+        .panel-monsters .panel-title {
+            color: var(--accent-yellow);
+        }
+
+        .panel-items .panel-title {
+            color: var(--accent-green);
+        }
+
+        .panel-entry {
+            font-size: 10px;
+            padding: 2px 4px;
+            margin-bottom: 2px;
+            border-radius: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .panel-enemies .panel-entry {
+            background: rgba(248, 81, 73, 0.1);
+            color: var(--accent-red);
+            border: 1px solid rgba(248, 81, 73, 0.2);
+        }
+
+        .panel-monsters .panel-entry {
+            background: rgba(210, 153, 34, 0.1);
+            color: var(--accent-yellow);
+            border: 1px solid rgba(210, 153, 34, 0.2);
+        }
+
+        .panel-items .panel-entry {
+            background: rgba(63, 185, 80, 0.1);
+            color: var(--accent-green);
+            border: 1px solid rgba(63, 185, 80, 0.2);
+        }
+
+        .panel-empty {
+            font-size: 10px;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        /* ─── Kill Feed ──────────────────────────────────── */
+        .kill-feed-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+
+        .kill-feed-header {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .kill-feed-header .icon {
+            font-size: 16px;
+        }
+
+        .kill-feed-body {
+            max-height: 160px;
+            overflow-y: auto;
+            padding: 6px 0;
+        }
+
+        .kill-entry {
+            padding: 4px 14px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background var(--transition);
+        }
+
+        .kill-entry:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .kill-entry .kill-time {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--text-muted);
+            min-width: 55px;
+        }
+
+        .kill-entry .killer {
+            color: var(--accent-green);
+            font-weight: 600;
+        }
+
+        .kill-entry .weapon {
+            color: var(--accent-magenta);
+            font-size: 11px;
+        }
+
+        .kill-entry .victim {
+            color: var(--accent-red);
+            font-weight: 600;
+        }
+
+        .kill-entry .victim.monster {
+            color: var(--accent-yellow);
+        }
+
+        .kill-entry .separator {
+            color: var(--text-muted);
+        }
+
+        .kill-entry-new {
+            animation: kill-flash 1s ease;
+        }
+
+        @keyframes kill-flash {
+            0% {
+                background: rgba(248, 81, 73, 0.2);
+            }
+
+            100% {
+                background: transparent;
+            }
+        }
+
+        .kill-feed-empty {
+            padding: 20px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        /* ─── Log Panel ──────────────────────────────────── */
+        .log-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+
+        .log-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-primary);
+            overflow-x: auto;
+            background: var(--bg-tertiary);
+        }
+
+        .log-tab {
+            padding: 8px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all var(--transition);
+            white-space: nowrap;
+            user-select: none;
+        }
+
+        .log-tab:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .log-tab.active {
+            color: var(--accent-cyan);
+            border-bottom-color: var(--accent-cyan);
+        }
+
+        .log-body {
+            height: 280px;
+            overflow-y: auto;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            padding: 6px 0;
+            background: var(--bg-primary);
+        }
+
+        .log-entry {
+            padding: 2px 12px;
+            display: flex;
+            gap: 8px;
+            line-height: 1.6;
+            transition: background 0.15s;
+        }
+
+        .log-entry:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .log-time {
+            color: var(--text-muted);
+            min-width: 60px;
+            flex-shrink: 0;
+        }
+
+        .log-agent-tag {
+            min-width: 65px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .log-msg {
+            word-break: break-word;
+        }
+
+        .log-info .log-msg {
+            color: var(--text-secondary);
+        }
+
+        .log-success .log-msg {
+            color: var(--accent-green);
+        }
+
+        .log-warning .log-msg {
+            color: var(--accent-yellow);
+        }
+
+        .log-error .log-msg {
+            color: var(--accent-red);
+        }
+
+        .log-critical .log-msg {
+            color: var(--accent-red);
+            font-weight: 700;
+        }
+
+        .log-action .log-msg {
+            color: var(--accent-magenta);
+        }
+
+        .log-new {
+            animation: log-flash 0.5s ease;
+        }
+
+        @keyframes log-flash {
+            0% {
+                background: rgba(88, 166, 255, 0.1);
+            }
+
+            100% {
+                background: transparent;
+            }
+        }
+
+        /* Agent tag colors */
+        .agent-color-0 {
+            color: var(--accent-cyan);
+        }
+
+        .agent-color-1 {
+            color: var(--accent-green);
+        }
+
+        .agent-color-2 {
+            color: var(--accent-yellow);
+        }
+
+        .agent-color-3 {
+            color: var(--accent-magenta);
+        }
+
+        .agent-color-4 {
+            color: var(--accent-pink);
+        }
+
+        /* ─── Footer ─────────────────────────────────────── */
+        .footer {
+            text-align: center;
+            padding: 12px;
+            font-size: 11px;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border-primary);
+        }
+
+        /* ─── Responsive ─────────────────────────────────── */
+        @media (max-width: 768px) {
+            .header {
+                padding: 8px 12px;
+                gap: 8px;
+            }
+
+            .header-stats {
+                margin-left: 0;
+            }
+
+            .agents-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .main-content {
+                padding: 10px;
+                gap: 10px;
+            }
+
+            .log-body {
+                height: 200px;
+            }
+        }
+
+        @media (min-width: 1400px) {
+            .agents-grid {
+                grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ─── Header ────────────────────────────────────────── -->
+    <header class="header">
+        <div class="header-logo">
+            <div class="icon">⚔️</div>
+            <h1>MOLTY ROYALE</h1>
+        </div>
+
+        <div class="header-stats">
+            <div class="header-stat">
+                <span class="value" id="agentCount">0</span>
+                <span class="label">Agents</span>
+            </div>
+            <div class="header-stat">
+                <span class="value" id="totalGames">0</span>
+                <span class="label">Games</span>
+            </div>
+            <div class="header-stat">
+                <span class="value" id="totalWins">0</span>
+                <span class="label">Wins</span>
+            </div>
+            <div class="header-stat">
+                <span class="label">CPU:</span>
+                <span class="value" id="cpuStat">-</span>
+            </div>
+            <div class="header-stat">
+                <span class="label">RAM:</span>
+                <span class="value" id="ramStat">-</span>
+            </div>
+            <div class="header-time" id="headerTime">--:--:--</div>
+        </div>
+    </header>
+
+    <!-- ─── Main Content ──────────────────────────────────── -->
+    <main class="main-content">
+
+        <!-- Agent Panels Grid -->
+        <section class="agents-grid" id="agentsGrid">
+            <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted);">
+                ⏳ Waiting for agents to connect...
+            </div>
+        </section>
+
+        <!-- Kill Feed -->
+        <section class="kill-feed-section">
+            <div class="kill-feed-header">
+                <span class="icon">⚔️</span>
+                Kill Feed
+            </div>
+            <div class="kill-feed-body" id="killFeed">
+                <div class="kill-feed-empty">No kills yet — waiting for battle to begin...</div>
+            </div>
+        </section>
+
+        <!-- Log Panel -->
+        <section class="log-section">
+            <div class="log-tabs" id="logTabs">
+                <div class="log-tab active" data-agent="all" onclick="switchLogTab('all')">📋 All</div>
+            </div>
+            <div class="log-body" id="logBody"></div>
+        </section>
+
+    </main>
+
+    <footer class="footer">
+        Molty Royale AI Bot Dashboard • Real-time monitoring
+    </footer>
+
+    <!-- ─── JavaScript ────────────────────────────────────── -->
+    <script>
+        (function () {
+            'use strict';
+
+            // ─── State ──────────────────────────────────────
+            const agents = {};
+            const allLogs = [];
+            const agentLogs = {};
+            const killFeedData = [];
+            let activeLogTab = 'all';
+            let autoScroll = true;
+
+            // ─── Socket.IO ──────────────────────────────────
+            const socket = io();
+
+            socket.on('connect', () => {
+                console.log('[Dashboard] Connected');
+            });
+
+            socket.on('full_state', (data) => {
+                // Initial load
+                document.getElementById('totalGames').textContent = data.total_games || 0;
+                document.getElementById('totalWins').textContent = data.total_wins || 0;
+
+                // Load agents
+                for (const [label, agentData] of Object.entries(data.agents || {})) {
+                    agents[label] = agentData;
+                }
+                renderAllAgents();
+
+                // Load logs
+                for (const entry of (data.global_logs || [])) {
+                    allLogs.push(entry);
+                    const agent = entry.agent || 'system';
+                    if (!agentLogs[agent]) agentLogs[agent] = [];
+                    agentLogs[agent].push(entry);
+                }
+                renderLogTabs();
+                renderLogs();
+
+                // Load kill feed
+                for (const entry of (data.kill_feed || [])) {
+                    killFeedData.push(entry);
+                }
+                renderKillFeed();
+            });
+
+            socket.on('state_update', (data) => {
+                const label = data.agent;
+                if (!agents[label]) {
+                    agents[label] = {};
+                }
+                Object.assign(agents[label], data.data);
+                renderAgent(label);
+                updateAgentCount();
+            });
+
+            socket.on('counter_update', (data) => {
+                document.getElementById('totalGames').textContent = data.total_games || 0;
+                document.getElementById('totalWins').textContent = data.total_wins || 0;
+            });
+
+            socket.on('new_log', (entry) => {
+                allLogs.push(entry);
+                if (allLogs.length > 500) allLogs.shift();
+
+                const agent = entry.agent || 'system';
+                if (!agentLogs[agent]) {
+                    agentLogs[agent] = [];
+                    renderLogTabs();
+                }
+                agentLogs[agent].push(entry);
+                if (agentLogs[agent].length > 500) agentLogs[agent].shift();
+
+                appendLogEntry(entry);
+            });
+
+            socket.on('kill_feed', (entry) => {
+                killFeedData.push(entry);
+                if (killFeedData.length > 100) killFeedData.shift();
+                prependKillEntry(entry, true);
+            });
+
+            socket.on('system_stats', (stats) => {
+                document.getElementById('cpuStat').textContent = stats.cpu;
+                document.getElementById('ramStat').textContent = stats.ram_used;
+            });
+
+            // ─── Clock ──────────────────────────────────────
+            setInterval(() => {
+                document.getElementById('headerTime').textContent =
+                    new Date().toLocaleTimeString('en-US', { hour12: false });
+            }, 1000);
+
+            // ─── Render Agents ──────────────────────────────
+            function renderAllAgents() {
+                const grid = document.getElementById('agentsGrid');
+                grid.innerHTML = '';
+                const sortedLabels = Object.keys(agents).sort();
+                for (const label of sortedLabels) {
+                    renderAgent(label);
+                }
+                if (sortedLabels.length === 0) {
+                    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted);">⏳ Waiting for agents to connect...</div>';
+                }
+                updateGlobalStatus();
+                updateAgentCount();
+            }
+
+            function renderAgent(label) {
+                const data = agents[label];
+                if (!data) return;
+
+                let card = document.getElementById('agent-' + label);
+                if (!card) {
+                    card = document.createElement('div');
+                    card.id = 'agent-' + label;
+                    card.className = 'agent-card';
+                    const grid = document.getElementById('agentsGrid');
+                    // Remove placeholder text (if present)
+                    const placeholder = grid.querySelector('[style*="grid-column"]');
+                    if (placeholder) placeholder.remove();
+                    // Insert in sorted order
+                    const sortedLabels = Object.keys(agents).sort();
+                    const myIdx = sortedLabels.indexOf(label);
+                    const nextLabel = sortedLabels[myIdx + 1];
+                    const nextCard = nextLabel ? document.getElementById('agent-' + nextLabel) : null;
+                    if (nextCard) {
+                        grid.insertBefore(card, nextCard);
+                    } else {
+                        grid.appendChild(card);
+                    }
+                }
+
+                const status = data.status || 'idle';
+                const hp = data.hp || 0;
+                const maxHp = data.max_hp || 100;
+                const ep = data.ep || 0;
+                const maxEp = data.max_ep || 10;
+                const hpPct = maxHp > 0 ? (hp / maxHp * 100) : 0;
+                const epPct = maxEp > 0 ? (ep / maxEp * 100) : 0;
+                const hpClass = hpPct > 50 ? '' : (hpPct > 25 ? 'medium' : 'low');
+
+                const atk = data.atk || 0;
+                const def = data.def || 0;
+                const vision = data.vision || 0;
+                const kills = data.kills || 0;
+                const weapon = data.weapon || 'Fist';
+                const weaponBonus = data.weapon_bonus || 0;
+
+                const regionName = data.region_name || '-';
+                const terrain = data.terrain || '';
+                const weather = data.weather || '';
+
+                const gameName = data.game_name || '';
+                const wins = data.wins || 0;
+                const moltz = data.moltz || 0;
+                const turn = data.turn || 0;
+
+                const lastAction = data.last_action || '';
+                const lastActionDetail = data.last_action_detail || '';
+
+                const inventory = data.inventory || [];
+                const enemies = data.visible_agents || [];
+                const monsters = data.visible_monsters || [];
+                const items = data.visible_items || [];
+
+                card.className = 'agent-card status-' + status;
+
+                const agentColorIdx = Object.keys(agents).sort().indexOf(label);
+                const nameColorClass = agentColorIdx >= 0 ? 'agent-color-' + (agentColorIdx % 5) : '';
+
+                card.innerHTML = `
+                <div class="card-header">
+                    <span class="agent-name ${nameColorClass}">${escHtml(data.name || label)}</span>
+                    <span class="agent-status badge-${status}">${status.toUpperCase()}</span>
+                </div>
+
+
+                ${gameName ? `
+                <div class="game-info">
+                    <div>🏆 <span class="game-name">${escHtml(gameName)}</span></div>
+                    <div class="game-stats">
+                        <span>🏅 ${wins} Wins</span>
+                        <span>💰 $Moltz ${moltz}</span>
+                    </div>
+                </div>
+                ` : `<div class="game-info"><span style="color:var(--text-muted)">No active game</span></div>`}
+
+                <div class="bars-section">
+                    <div class="stat-bar-row">
+                        <span class="bar-label">HP</span>
+                        <div class="bar-track">
+                            <div class="bar-fill bar-hp ${hpClass}" style="width:${hpPct}%"></div>
+                        </div>
+                        <span class="bar-value">${hp}/${maxHp}</span>
+                    </div>
+                    <div class="stat-bar-row">
+                        <span class="bar-label">EP</span>
+                        <div class="bar-track">
+                            <div class="bar-fill bar-ep" style="width:${epPct}%"></div>
+                        </div>
+                        <span class="bar-value">EP ${ep}/${maxEp}</span>
+                    </div>
+                </div>
+
+                <div class="stats-row">
+                    <div class="stat-chip"><span class="stat-icon">⚔️</span> <span class="stat-val">${atk}</span></div>
+                    <div class="stat-chip"><span class="stat-icon">🛡️</span> <span class="stat-val">${def}</span></div>
+                    <div class="stat-chip"><span class="stat-icon">👁️</span> <span class="stat-val">${vision}</span></div>
+                    <div class="stat-chip"><span class="stat-icon">💀</span> <span class="stat-val">${kills}</span></div>
+                    <div class="stat-chip weapon-chip">${escHtml(weapon)} (+${weaponBonus})</div>
+                </div>
+
+                <div class="region-info">
+                    🗺️ <span class="region-name">${escHtml(regionName)}</span>
+                    ${terrain ? `<span class="terrain-badge terrain-${terrain}">${terrain}</span>` : ''}
+                    ${weather && weather !== 'clear' ? `<span style="color:var(--text-muted)">${weatherIcon(weather)} ${weather}</span>` : ''}
+                </div>
+
+                ${lastAction ? `
+                <div class="action-info">
+                    <span class="action-icon">${actionIcon(lastAction)}</span>
+                    <span class="action-text">${escHtml(lastAction)}</span>
+                    ${lastActionDetail ? ` → ${escHtml(lastActionDetail)}` : ''}
+                    ${turn ? `<span class="countdown">(T${turn})</span>` : ''}
+                </div>
+                ` : ''}
+
+                <div class="inventory-section">
+                    <div class="inventory-title">🎒 Inventory</div>
+                    <div class="inventory-list">
+                        ${inventory.length > 0
+                        ? inventory.map(i => `<div class="inventory-item">${escHtml(i)}</div>`).join('')
+                        : '<div class="inventory-empty">Empty</div>'
+                    }
+                    </div>
+                </div>
+
+                <div class="bottom-panels">
+                    <div class="bottom-panel panel-enemies">
+                        <div class="panel-title">Enemies</div>
+                        ${enemies.length > 0
+                        ? enemies.map(e => `<div class="panel-entry">${escHtml(e)}</div>`).join('')
+                        : '<div class="panel-empty">-</div>'
+                    }
+                    </div>
+                    <div class="bottom-panel panel-monsters">
+                        <div class="panel-title">Monsters</div>
+                        ${monsters.length > 0
+                        ? monsters.map(m => `<div class="panel-entry">${escHtml(m)}</div>`).join('')
+                        : '<div class="panel-empty">-</div>'
+                    }
+                    </div>
+                    <div class="bottom-panel panel-items">
+                        <div class="panel-title">Items</div>
+                        ${items.length > 0
+                        ? items.map(i => `<div class="panel-entry">${escHtml(i)}</div>`).join('')
+                        : '<div class="panel-empty">-</div>'
+                    }
+                    </div>
+                </div>
+            `;
+            }
+
+            // ─── Kill Feed ──────────────────────────────────
+            function renderKillFeed() {
+                const container = document.getElementById('killFeed');
+                if (killFeedData.length === 0) {
+                    container.innerHTML = '<div class="kill-feed-empty">No kills yet — waiting for battle to begin...</div>';
+                    return;
+                }
+                container.innerHTML = '';
+                for (const entry of killFeedData.slice().reverse()) {
+                    prependKillEntry(entry, false);
+                }
+            }
+
+            function prependKillEntry(entry, animate) {
+                const container = document.getElementById('killFeed');
+                // Remove empty message
+                const empty = container.querySelector('.kill-feed-empty');
+                if (empty) empty.remove();
+
+                const div = document.createElement('div');
+                div.className = 'kill-entry' + (animate ? ' kill-entry-new' : '');
+                const victimClass = entry.is_monster ? 'victim monster' : 'victim';
+                div.innerHTML = `
+                <span class="kill-time">${entry.timestamp}</span>
+                <span class="killer">${escHtml(entry.killer)}</span>
+                <span class="separator">—[</span>
+                <span class="weapon">${escHtml(entry.weapon)}</span>
+                <span class="separator">]→</span>
+                <span class="${victimClass}">${escHtml(entry.victim)}</span>
+            `;
+                container.insertBefore(div, container.firstChild);
+
+                // Keep max entries
+                while (container.children.length > 50) {
+                    container.removeChild(container.lastChild);
+                }
+            }
+
+            // ─── Log Panel ──────────────────────────────────
+            function getAgentName(label) {
+                if (!label) return '';
+                const data = agents[label];
+                return (data && data.name) ? data.name : label;
+            }
+
+            function renderLogTabs() {
+                const tabs = document.getElementById('logTabs');
+                tabs.innerHTML = '<div class="log-tab' + (activeLogTab === 'all' ? ' active' : '') + '" data-agent="all" onclick="switchLogTab(\'all\')">📋 All</div>';
+
+                const labels = Object.keys(agents).sort();
+                labels.forEach((label, idx) => {
+                    const active = activeLogTab === label ? ' active' : '';
+                    const displayName = getAgentName(label);
+                    tabs.innerHTML += `<div class="log-tab${active} agent-color-${idx % 5}" data-agent="${label}" onclick="switchLogTab('${label}')">${escHtml(displayName)}</div>`;
+                });
+            }
+
+            window.switchLogTab = function (agent) {
+                activeLogTab = agent;
+                document.querySelectorAll('.log-tab').forEach(t => {
+                    t.classList.toggle('active', t.getAttribute('data-agent') === agent);
+                });
+                renderLogs();
+            };
+
+            function renderLogs() {
+                const body = document.getElementById('logBody');
+                body.innerHTML = '';
+
+                let entries;
+                if (activeLogTab === 'all') {
+                    entries = allLogs.slice(-200);
+                } else {
+                    entries = (agentLogs[activeLogTab] || []).slice(-200);
+                }
+
+                for (const entry of entries) {
+                    appendLogEntryDom(body, entry, false);
+                }
+
+                if (autoScroll) body.scrollTop = body.scrollHeight;
+            }
+
+            function appendLogEntry(entry) {
+                if (activeLogTab !== 'all' && entry.agent !== activeLogTab) return;
+
+                const body = document.getElementById('logBody');
+                const shouldScroll = body.scrollTop + body.clientHeight >= body.scrollHeight - 30;
+                appendLogEntryDom(body, entry, true);
+
+                // Trim old entries
+                while (body.children.length > 300) {
+                    body.removeChild(body.firstChild);
+                }
+
+                if (shouldScroll) body.scrollTop = body.scrollHeight;
+            }
+
+            function appendLogEntryDom(container, entry, animate) {
+                const div = document.createElement('div');
+                const level = entry.level || 'info';
+                div.className = 'log-entry log-' + level + (animate ? ' log-new' : '');
+
+                const agentIdx = Object.keys(agents).sort().indexOf(entry.agent);
+                const colorClass = agentIdx >= 0 ? 'agent-color-' + (agentIdx % 5) : '';
+
+                const displayName = getAgentName(entry.agent);
+                div.innerHTML = `
+                <span class="log-time">${entry.timestamp || ''}</span>
+                <span class="log-agent-tag ${colorClass}">${escHtml(displayName)}</span>
+                <span class="log-msg">${escHtml(entry.message || '')}</span>
+            `;
+                container.appendChild(div);
+            }
+
+            // ─── Helpers ────────────────────────────────────
+            function updateAgentCount() {
+                document.getElementById('agentCount').textContent = Object.keys(agents).length;
+            }
+
+            function escHtml(str) {
+                if (!str) return '';
+                return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            }
+
+            function actionIcon(type) {
+                const icons = {
+                    move: '🏃', explore: '🔍', attack: '⚔️', use_item: '💊',
+                    interact: '⚙️', rest: '😴', pickup: '💰', equip: '🛡️',
+                    talk: '💬', whisper: '🤫', broadcast: '📢'
+                };
+                return icons[type] || '⚙️';
+            }
+
+            function weatherIcon(w) {
+                const icons = { rain: '🌧️', fog: '🌫️', storm: '⛈️', clear: '☀️' };
+                return icons[w] || '';
+            }
+
+        })();
+    </script>
+</body>
+
+</html>

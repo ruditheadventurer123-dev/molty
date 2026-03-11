@@ -1,0 +1,29 @@
+# Git
+.git/
+.gitignore
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Runtime data (generated at runtime)
+data/game_history/*
+data/models/*
+data/strategy_weights.json
+
+# Tests (not needed in production)
+tests/
+
+# Docs & scripts
+README.md
+run.sh
+docker-compose.yml
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db

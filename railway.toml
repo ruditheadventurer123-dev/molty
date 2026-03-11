@@ -1,0 +1,24 @@
+# ═══════════════════════════════════════════════════════════════
+# Molty Royale AI Bot — Railway Deployment Config
+# ═══════════════════════════════════════════════════════════════
+# Railway will use the Dockerfile to build and deploy.
+# Set environment variables in Railway dashboard:
+#   MR_API_KEY=mr_live_your_key_here
+#   MR_API_KEYS=key1,key2,key3  (multi-agent, up to 5)
+#   MR_ROOM_TYPE=free
+# ═══════════════════════════════════════════════════════════════
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "python -m src.multi_runner"
+restartPolicyType = "always"
+healthcheckPath = "/"
+numReplicas = 1
+
+# Persistent storage for ML models, game history, and strategy weights
+# Data survives across re-deploys (free up to 5 GB)
+[[deploy.volumes]]
+mountPath = "/app/data"
