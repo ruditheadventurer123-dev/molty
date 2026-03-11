@@ -35,18 +35,18 @@ def load_room_type():
             return data.get("room_type", "free")
     return "free"
 
-# ─── Indonesian Room Name Generator ────────────────────────────────
-NOUNS_ID = [
-    "Harimau", "Garuda", "Kancil", "Kucing", "Singa", "Elang", "Naga", "Serigala",
-    "Beruang", "Kuda", "Banteng", "Hiu", "Paus", "Rajawali", "Macan", "Bima"
+# ─── European Room Name Generator ────────────────────────────────
+NOUNS_EU = [
+    "London", "Paris", "Berlin", "Rome", "Madrid", "Vienna", "Prague", "Warsaw",
+    "Dublin", "Lisbon", "Athens", "Oslo", "Stockholm", "Helsinki", "Moscow", "Kiev"
 ]
-ADJECTIVES_ID = [
-    "Sakti", "Hitam", "Putih", "Emas", "Perkasa", "Gesit", "Cepat", "Kuat",
-    "Ganas", "Kilat", "Petir", "Api", "Es", "Bayangan", "Baja", "Bintang"
+ADJECTIVES_EU = [
+    "Royal", "Grand", "Imperial", "Golden", "Silver", "Crimson", "Azure", "Velvet",
+    "Silent", "Noble", "Ancient", "Hidden", "Fallen", "Sacred", "Nordic", "Celtic"
 ]
 
-def generate_indo_room_name():
-    """Generate a consistent random name like 'Harimau Sakti' based on the current day."""
+def generate_eu_room_name():
+    """Generate a consistent random name like 'Royal London' based on the current day."""
     # Use current Date as seed in UTC to avoid hourly desynchronization
     # e.g., "20260310"
     seed_str = datetime.now(timezone.utc).strftime("%Y%m%d")
@@ -56,17 +56,17 @@ def generate_indo_room_name():
     old_state = random.getstate()
     random.seed(seed_val)
     
-    noun = random.choice(NOUNS_ID)
-    adj = random.choice(ADJECTIVES_ID)
+    noun = random.choice(NOUNS_EU)
+    adj = random.choice(ADJECTIVES_EU)
     
     # Restore old state
     random.setstate(old_state)
     
-    return f"{noun} {adj}"
+    return f"{adj} {noun}"
 
 def load_room_name():
     """Load room name from env, fallback to auto-generated."""
-    return os.environ.get("MR_ROOM_NAME") or generate_indo_room_name()
+    return os.environ.get("MR_ROOM_NAME") or generate_eu_room_name()
 
 def get_friendly_agents():
     """Get list of friendly agent names to avoid attacking."""
