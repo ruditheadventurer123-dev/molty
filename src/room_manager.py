@@ -340,19 +340,8 @@ class RoomManager:
             
             # HOST SYNC: Wait until ALL other agents have finished playing.
             if self.is_host:
-                try:
-                    from src.dashboard.dashboard_state import state as dash
-                    while self._running:
-                        active_agents = dash.get_active_agent_count()
-                        # Allow at most 2 playing/waiting_death agents before host pulls the trigger
-                        # (Meaning almost all agents are either 'idle', 'dead', 'waiting')
-                        if active_agents <= 2:
-                            break
-                        
-                        logger.info(f"[HOST SYNC] Waiting for {active_agents} agents to finish playing before creating room...", logger.SYM_CLOCK)
-                        self._sleep_interruptible(5.0)
-                except Exception as e:
-                    logger.error(f"[HOST SYNC] Dashboard error: {e}")
+                pass # Removed local dashboard dash synchronization lock
+
 
             # Double check with API if we missed the shared state
             try:
