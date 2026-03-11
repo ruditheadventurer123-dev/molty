@@ -159,14 +159,14 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    # Waktu rotasi host (6 jam = 21600 detik)
-    # Gunakan rotasi modulus agar host berganti antara agen index 0, 1, dan 2 setiap 6 jam
-    HOURS_6_IN_SEC = 6 * 3600
+    # Waktu rotasi host (1 jam = 3600 detik)
+    # Gunakan rotasi modulus agar host berganti antara semua agen setiap 1 jam
+    HOURS_1_IN_SEC = 3600
     current_epoch = int(time.time())
-    # Jika agent kurang dari 3, modulus sesuai panjang agent
-    pool_size = min(3, len(api_keys))
+    # Modulus sesuai total jumlah agent agar bergiliran secara merata
+    pool_size = len(api_keys)
     # Hitung putaran rotasi saat ini
-    rotation_index = (current_epoch // HOURS_6_IN_SEC) % pool_size if pool_size > 0 else 0
+    rotation_index = (current_epoch // HOURS_1_IN_SEC) % pool_size if pool_size > 0 else 0
 
     # Spawn agent threads
     threads = []
