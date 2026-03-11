@@ -31,25 +31,27 @@ MAX_AGENTS_PER_IP = 50
 def load_api_keys():
     """
     Load API keys from environment.
-    Priority: MR_API_KEYS (comma-separated) > MR_API_KEY (single).
+    Priority: MR_API_KEYS (comma-separated or newline-separated) > MR_API_KEY (single).
     Returns list of keys (max 50).
     """
-    # Multi-key format
-    multi_keys = os.environ.get("MR_API_KEYS", "").strip()
-    if multi_keys:
-        keys = [k.strip() for k in multi_keys.split(",") if k.strip()]
+    import re
+    
+    # Try multi keys first, fallback to single key variable
+    raw_keys = os.environ.get("MR_API_KEYS", "").strip()
+    if not raw_keys:
+        raw_keys = os.environ.get("MR_API_KEY", "").strip()
+        
+    if raw_keys:
+        # Split by comma, newline, or carriage return
+        keys = [k.strip() for k in re.split(r'[,\n\r]+', raw_keys) if k.strip()]
         if len(keys) > MAX_AGENTS_PER_IP:
+            from src import logger
             logger.warning(
                 f"Too many API keys ({len(keys)}). "
                 f"Max {MAX_AGENTS_PER_IP} per IP. Using first {MAX_AGENTS_PER_IP}."
             )
             keys = keys[:MAX_AGENTS_PER_IP]
         return keys
-
-    # Single key (backward compatible)
-    single_key = os.environ.get("MR_API_KEY", "").strip()
-    if single_key:
-        return [single_key]
 
     # Try credentials file
     from src.config import load_api_key
