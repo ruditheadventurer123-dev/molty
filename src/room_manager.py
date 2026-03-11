@@ -112,6 +112,10 @@ class RoomManager:
                         logger.success(f"Already in running {entry_type} game!", logger.SYM_STAR)
                         logger.joined_game(f"Active Game", game_id, agent_name)
                         self.last_game_name = game.get("gameName", game.get("name", "Active Game"))
+                        
+                        # Set a "just finished" flag so it knows to sleep before checking the next loops
+                        self._needs_cooldown = True 
+                        
                         return game_id, agent_id
 
                     if game_status == "waiting":
@@ -129,6 +133,13 @@ class RoomManager:
                 )
             else:
                 logger.error(f"Error checking account: {e}")
+
+        # SYNC COOLDOWN: If bot just finished a game or died, sleep to give others time to finish
+        if getattr(self, "_needs_cooldown", False):
+            cooldown_time = random.uniform(30.0, 90.0) # 30 - 90 seconds random sync window
+            logger.info(f"Synchronizing match phase. Sleeping for {int(cooldown_time)} seconds...", logger.SYM_CLOCK)
+            self._sleep_interruptible(cooldown_time)
+            self._needs_cooldown = False
 
         # Step 2: Search for waiting game
         check_count = 0
@@ -222,6 +233,7 @@ class RoomManager:
                                 f"Waiting for game to finish..."
                             )
                             self._wait_for_game_finish(game_id)
+                            self._needs_cooldown = True # apply sync cooldown after wait finishes
                             continue  # Try again to find a new game
                     self._log_active_game_status(game_id, agent_id)
                     return game_id, agent_id
@@ -464,6 +476,7 @@ class RoomManager:
                         game_status = game.get("gameStatus", "")
                         if game_status == "finished":
                             logger.info(f"Game [{game_id[:8]}...] has finished. Ready for next game.")
+                            self._needs_cooldown = True
                             return
                         still_in_game = True
                         break
@@ -471,6 +484,7 @@ class RoomManager:
                 if not still_in_game:
                     # Game no longer in currentGames — it must have finished
                     logger.info(f"Game [{game_id[:8]}...] no longer active. Ready for next game.")
+                    self._needs_cooldown = True
                     return
 
                 logger.info(
