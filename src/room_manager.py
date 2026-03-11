@@ -344,9 +344,9 @@ class RoomManager:
                     from src.dashboard.dashboard_state import state as dash
                     while self._running:
                         active_agents = dash.get_active_agent_count()
-                        # Allow at most 0 playing agents before host pulls the trigger
-                        # (Meaning all agents are either 'idle', 'dead', 'waiting')
-                        if active_agents == 0:
+                        # Allow at most 2 playing/waiting_death agents before host pulls the trigger
+                        # (Meaning almost all agents are either 'idle', 'dead', 'waiting')
+                        if active_agents <= 2:
                             break
                         
                         logger.info(f"[HOST SYNC] Waiting for {active_agents} agents to finish playing before creating room...", logger.SYM_CLOCK)
