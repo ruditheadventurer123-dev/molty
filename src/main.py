@@ -185,14 +185,13 @@ class MoltyBot:
         # ── Step 7: Continuous game lifecycle ─────────────────────
         while self._running:
             try:
-                # Find and join a game
-                game_id, agent_id = self.room_manager.find_and_join_game()
-
-                if not game_id or not agent_id:
-                    if self._running:
-                        logger.warning("Could not join a game. Retrying in 30s...")
-                        self._sleep_interruptible(30)
-                    continue
+                # User command: Idle all bots for now!
+                logger.info("Bot is in IDLE mode per user request. Waiting for further instructions...", logger.SYM_CLOCK)
+                self._sleep_interruptible(60)
+                continue
+                
+                # Find and join a game (DISABLED)
+                # game_id, agent_id = self.room_manager.find_and_join_game()
 
                 # Play the game
                 self.bot._game_name = self.room_manager.last_game_name
