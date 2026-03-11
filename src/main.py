@@ -128,8 +128,8 @@ class MoltyBot:
         clean_name = (self.agent_name or "").strip(' "\'').lower()
         is_host = (clean_name == clean_host)
         
-        # If no host account is explicitly defined in ENV, fallback to the first agent
-        if not clean_host and self._is_fallback_host:
+        # Multi-runner explicit host rotation overrides default settings
+        if self._is_fallback_host:
             is_host = True
             
         logger.info(f"DEBUG HOST: name='{clean_name}', env_host='{clean_host}', fallback={self._is_fallback_host} => is_host={is_host}")

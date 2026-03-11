@@ -195,6 +195,31 @@ def validate_name(name: str) -> tuple:
     return (False, " | ".join(errors), name_clean) if errors else (True, "", name_clean)
 
 
+def extract_address(raw: str) -> str:
+    """
+    Ekstrak Ethereum address (0x + 40 hex) dari input apapun.
+    Handle kasus user paste JSON, dict Python, atau teks campur lain.
+    Contoh input yang bisa dihandle:
+      - "walletAddress": "0xca7ea55d..."
+      - {"address": "0xca7ea55d..."}
+      - 0xca7ea55d...  (langsung)
+      - "0xca7ea55d..."  (dengan quote)
+    """
+    import re
+    if not raw:
+        return raw
+    # Cari semua pola 0x + 40 hex chars
+    matches = re.findall(r'0x[0-9a-fA-F]{40}', raw)
+    if matches:
+        return matches[0]
+    # Kalau tidak ada 0x, coba cari 40 hex chars saja dan tambah 0x
+    matches_bare = re.findall(r'\b([0-9a-fA-F]{40})\b', raw)
+    if matches_bare:
+        return "0x" + matches_bare[0]
+    # Kembalikan raw — biar validate_wallet yang kasih error
+    return raw.strip()
+
+
 def validate_wallet(wallet: str) -> tuple:
     if not wallet:
         return False, "Wallet tidak boleh kosong"
@@ -726,7 +751,7 @@ def flow_create_account():
     print(f"{C.DIM}Format: 0x + 40 hex chars = 42 karakter{C.RESET}\n")
     wallet = ""
     while True:
-        raw_wallet = safe_input(f"{C.YELLOW}Wallet address{C.RESET} (0x... / kosong = skip): ").strip()
+        raw_wallet = extract_address(safe_input(f"{C.YELLOW}Wallet address{C.RESET} (0x... / kosong = skip): ").strip())
         if not raw_wallet:
             print(f"  {C.YELLOW}⚠ Wallet dilewati. Set nanti via menu Update Wallet.{C.RESET}")
             break
@@ -906,7 +931,7 @@ def flow_update_wallet():
         print(f"Wallet lama: {account['walletAddress']}")
 
     while True:
-        wallet = safe_input("\nWallet baru (0x...42 karakter): ").strip()
+        wallet = extract_address(safe_input("\nWallet baru (0x...42 karakter): ").strip())
         ok, err = validate_wallet(wallet)
         if ok:
             break
@@ -1344,7 +1369,7 @@ def flow_import_account():
             set_wallet = safe_input("         Set wallet sekarang? (y/n): ").strip().lower()
             if set_wallet == "y":
                 while True:
-                    w = safe_input("         Wallet (0x...): ").strip()
+                    w = extract_address(safe_input("         Wallet (0x...): ").strip())
                     ok, err = validate_wallet(w)
                     if ok:
                         # Coba sync ke server
@@ -1482,7 +1507,7 @@ def flow_bulk_create():
     wallets = []
     if mode_wallet == "1":
         while True:
-            w = safe_input(f"  {C.YELLOW}Wallet address{C.RESET} (0x...): ").strip()
+            w = extract_address(safe_input(f"  {C.YELLOW}Wallet address{C.RESET} (0x...): ").strip())
             ok, err = validate_wallet(w)
             if ok:
                 wallets = [w] * total
@@ -1494,7 +1519,7 @@ def flow_bulk_create():
         print(f"\n  {C.DIM}Masukkan {total} wallet address:{C.RESET}")
         for i in range(1, total + 1):
             while True:
-                w = safe_input(f"  Wallet [{i}/{total}] (0x...): ").strip()
+                w = extract_address(safe_input(f"  Wallet [{i}/{total}] (0x...): ").strip())
                 ok, err = validate_wallet(w)
                 if ok:
                     wallets.append(w)
@@ -1743,7 +1768,7 @@ def flow_check_wallets():
     if pilihan == "1":
         # Satu wallet untuk semua
         while True:
-            w = safe_input(f"\n  {C.YELLOW}Wallet address{C.RESET} untuk semua akun (0x...): ").strip()
+            w = extract_address(safe_input(f"\n  {C.YELLOW}Wallet address{C.RESET} untuk semua akun (0x...): ").strip())
             ok, err = validate_wallet(w)
             if ok:
                 break
@@ -1772,7 +1797,7 @@ def flow_check_wallets():
             name = acc.get("name", "?")
             print(f"\n  {C.BOLD}[{name}]{C.RESET} (ID: {acc['accountId'][:16]}...)")
             while True:
-                w = safe_input(f"  Wallet (0x... / kosong = skip): ").strip()
+                w = extract_address(safe_input(f"  Wallet (0x... / kosong = skip): ").strip())
                 if not w:
                     print(f"  {C.DIM}Dilewati.{C.RESET}")
                     break
@@ -1885,7 +1910,7 @@ def flow_paid_wallet_setup():
         if not owner_eoa:
             print(f"\n  {C.BOLD}Owner EOA{C.RESET} {C.DIM}(wallet address owner, bukan agent){C.RESET}")
             while True:
-                owner_eoa = safe_input("  Owner wallet (0x...): ").strip()
+                owner_eoa = extract_address(safe_input("  Owner wallet (0x...): ").strip())
                 ok, err = validate_wallet(owner_eoa)
                 if ok:
                     break
@@ -2112,14 +2137,20 @@ def _flow_manage_privkey():
                 print(f"  [m] Input manual EOA baru\n")
                 sel = safe_input(f"  Pilih (1-{len(known_eoas)} / m): ").strip().lower()
                 if sel == "m":
-                    owner_eoa = safe_input("  Owner EOA (0x...): ").strip()
+                    raw_eoa   = safe_input("  Owner EOA (0x...): ").strip()
+                    owner_eoa = extract_address(raw_eoa)
+                    if owner_eoa != raw_eoa.strip():
+                        print(f"  {C.DIM}→ Address diekstrak: {owner_eoa}{C.RESET}")
                 elif sel.isdigit() and 1 <= int(sel) <= len(known_eoas):
                     owner_eoa = known_eoas[int(sel) - 1]
                 else:
                     print(f"  {C.RED}Pilihan tidak valid.{C.RESET}")
                     continue
             else:
-                owner_eoa = safe_input("  Owner EOA (0x...): ").strip()
+                raw_eoa   = safe_input("  Owner EOA (0x...): ").strip()
+                owner_eoa = extract_address(raw_eoa)
+                if owner_eoa != raw_eoa.strip():
+                    print(f"  {C.DIM}→ Address diekstrak: {owner_eoa}{C.RESET}")
 
             if not owner_eoa:
                 continue
