@@ -212,18 +212,10 @@ class RoomManager:
                         return game_id, agent_id
 
                 else:
-                    # No matching game found. If a specific room_name is targeted, EVERYONE can try to create it.
-                    # This decentralizes room creation to avoid rate limits (Anti-Spam) on a single host.
-                    # If someone else creates it first, this agent cleanly catches WAITING_GAME_EXISTS.
-                    if self.room_name or self.is_host:
-                        # CROSS-PROJECT JITTER: If not the primary host, randomly delay 0.5s - 3.0s before 
-                        # trying to create. This prevents 4 separate Railway projects from creating 
-                        # 4 identical rooms at the exact same millisecond. The winner creates it, 
-                        # and the sleepers will cleanly catch WAITING_GAME_EXISTS when they wake up.
-                        if not self.is_host:
-                            jitter = random.uniform(0.5, 3.0)
-                            time.sleep(jitter)
-
+                    # No matching game found. 
+                    # HOST-ONLY CREATION: To absolutely guarantee 50 bots sync, ONLY the designated host
+                    # is allowed to create the room. Followers will simply wait.
+                    if self.is_host:
                         game_id = self._try_create_game()
                         if game_id:
                             agent_id = self._register_in_game(game_id)
@@ -231,13 +223,9 @@ class RoomManager:
                                 self.last_game_name = self.room_name or f"{self.agent_name}'s Room"
                                 logger.joined_game("New Room", game_id, self.agent_name)
                                 return game_id, agent_id
-                        elif not self.is_host:
-                            # If creation failed but they aren't the primary host, just log that they're waiting
-                            print("")
-                            logger.info(f"Room '{self.room_name}' not found. Waiting for it to be created...")
                     else:
                         print("")
-                        logger.info(f"Waiting for a '{self.room_type}' room to appear...")
+                        logger.info(f"Follower waiting for Host to create room '{self.room_name or self.room_type}'...")
 
                 # AGGRESSIVE (0.5s) polling for EVERYONE targeting a specific room
                 # to snipe free 100/100 rooms that fill in < 3 seconds
@@ -350,7 +338,23 @@ class RoomManager:
             if recent:
                 return ""  # Already created by a peer, skip and join it next iteration
             
-            # Double check with API API if we missed the shared state
+            # HOST SYNC: Wait until ALL other agents have finished playing.
+            if self.is_host:
+                try:
+                    from src.dashboard.dashboard_state import state as dash
+                    while self._running:
+                        active_agents = dash.get_active_agent_count()
+                        # Allow at most 0 playing agents before host pulls the trigger
+                        # (Meaning all agents are either 'idle', 'dead', 'waiting')
+                        if active_agents == 0:
+                            break
+                        
+                        logger.info(f"[HOST SYNC] Waiting for {active_agents} agents to finish playing before creating room...", logger.SYM_CLOCK)
+                        self._sleep_interruptible(5.0)
+                except Exception as e:
+                    logger.error(f"[HOST SYNC] Dashboard error: {e}")
+
+            # Double check with API if we missed the shared state
             try:
                 games = self.api.list_games("waiting")
                 matching = [g for g in games if g.get("entryType", "free") == self.room_type]
