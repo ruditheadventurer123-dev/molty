@@ -48,7 +48,10 @@ def main():
             api_keys = []
             for line in lines:
                 if line.startswith('API Key:'):
-                    api_keys.append(line.split('API Key:')[1].strip())
+                    # Sangat penting: hapus whitespaces, \n, \r di ujung key
+                    key = line.split('API Key:')[1].strip()
+                    if key:
+                        api_keys.append(key)
                     
             if api_keys:
                 # Start each party in its own thread so they all run concurrently
