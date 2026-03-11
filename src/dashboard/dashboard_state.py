@@ -143,6 +143,15 @@ class DashboardState:
         with self._lock:
             return list(self._agents.keys())
 
+    def get_active_agent_count(self) -> int:
+        """Get number of agents currently in 'running' state."""
+        count = 0
+        with self._lock:
+            for label, data in self._agents.items():
+                if data.get("status") == "running":
+                    count += 1
+        return count
+
 
 # Singleton
 state = DashboardState()

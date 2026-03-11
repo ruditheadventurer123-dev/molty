@@ -134,12 +134,36 @@ class RoomManager:
             else:
                 logger.error(f"Error checking account: {e}")
 
-        # SYNC COOLDOWN: If bot just finished a game or died, sleep to give others time to finish
+        # SYNC COOLDOWN: Smart Sync based on active playing agents
         if getattr(self, "_needs_cooldown", False):
-            cooldown_time = random.uniform(30.0, 90.0) # 30 - 90 seconds random sync window
-            logger.info(f"Synchronizing match phase. Sleeping for {int(cooldown_time)} seconds...", logger.SYM_CLOCK)
-            self._sleep_interruptible(cooldown_time)
             self._needs_cooldown = False
+            
+            # Fetch global state of other agents
+            try:
+                from src.dashboard.dashboard_state import state as dash
+                active_agents = dash.get_active_agent_count()
+            except ImportError:
+                active_agents = 0
+            
+            # Logic: If > 35 agents are still playing, we MUST wait for the horde.
+            # If <= 15 agents are playing, the coast is clear to start a new game together.
+            if active_agents > 35:
+                logger.info(f"Horde still playing ({active_agents} agents active). Waiting in lobby...", logger.SYM_CLOCK)
+                # Sleep in increments so it can re-check the count 
+                while self._running:
+                    try:
+                        current_active = dash.get_active_agent_count()
+                        if current_active <= 15:
+                            logger.success(f"Path clear! Only {current_active} agents still playing. Proceeding to matchmaking!")
+                            break
+                        self._sleep_interruptible(10.0) # check again in 10s
+                    except Exception:
+                        break # fallback if dash fails
+            else:
+                # Still apply a tiny jitter delay to prevent simultaneous API spam
+                jitter = random.uniform(3.0, 10.0)
+                logger.info(f"Synchronizing match phase. Short delay: {int(jitter)}s...", logger.SYM_CLOCK)
+                self._sleep_interruptible(jitter)
 
         # Step 2: Search for waiting game
         check_count = 0
