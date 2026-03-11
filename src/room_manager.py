@@ -25,11 +25,16 @@ class _SharedState:
             self.game_id = game_id
             self.timestamp = time.time()
 
-    def get_recent_game(self, max_age: float = 10.0) -> str:
+    def get_recent_game(self, max_age: float = 120.0) -> str:
         with self.lock:
             if self.game_id and (time.time() - self.timestamp) < max_age:
                 return self.game_id
             return ""
+
+    def clear_game(self, game_id: str):
+        with self.lock:
+            if self.game_id == game_id:
+                self.game_id = ""
 
 SHARED_STATE = _SharedState()
 
@@ -136,7 +141,7 @@ class RoomManager:
                 # 1. Check P2P Shared Memory (bypasses list_games API for instant joining!)
                 # This only works for agents running in the exact same multi_runner.py execution.
                 if self.room_name:
-                    recent_shared_id = SHARED_STATE.get_recent_game(max_age=10.0)
+                    recent_shared_id = SHARED_STATE.get_recent_game(max_age=120.0)
                     if recent_shared_id:
                         agent_id = self._register_in_game(recent_shared_id)
                         if agent_id:
@@ -263,9 +268,11 @@ class RoomManager:
                 return agent_id_active or ""
             elif e.code == "MAX_AGENTS_REACHED":
                 logger.warning("Game is full. Trying another...")
+                SHARED_STATE.clear_game(game_id)
                 return ""
             elif e.code == "GAME_ALREADY_STARTED":
                 logger.warning("Game already started. Looking for another...")
+                SHARED_STATE.clear_game(game_id)
                 return ""
             else:
                 logger.error(f"Registration failed: {e}")
@@ -302,7 +309,12 @@ class RoomManager:
     def _try_create_game(self) -> str:
         """Try to create a new game room safely. Returns game_id or empty string."""
         with CREATE_GAME_LOCK:
-            # Double check if someone else in another thread just created it while we waited for the lock
+            # Check if someone else just created it while we waited for the lock
+            recent = SHARED_STATE.get_recent_game(max_age=120.0)
+            if recent:
+                return ""  # Already created by a peer, skip and join it next iteration
+            
+            # Double check with API API if we missed the shared state
             try:
                 games = self.api.list_games("waiting")
                 matching = [g for g in games if g.get("entryType", "free") == self.room_type]
