@@ -212,20 +212,35 @@ class RoomManager:
                         return game_id, agent_id
 
                 else:
+                    from datetime import datetime
+                    import random
+
+                    def get_deterministic_room_name():
+                        # Sinkronisasi nama room berbasis Tanggal dan Jam
+                        now = datetime.now()
+                        tanggal = now.strftime('%Y-%m-%d')
+                        jam = now.hour # 0 - 23
+                        if tanggal == "2026-03-11":
+                            kata_kunci = "SingaHitam"
+                        else:
+                            old_state = random.getstate()
+                            random.seed(tanggal) # Seed pakai tanggal saja agar sama 24 jam
+                            hewan = ["Singa", "Elang", "Macan", "Hiu", "Serigala", "Naga", "Paus", "Rajawali", "Harimau", "Beruang",
+                                     "Banteng", "Kuda", "Badak", "Kobra", "Garuda", "Buaya", "Gorila", "Komodo", "Cheetah", "Jaguar"]
+                            warna = ["Hitam", "Putih", "Merah", "Biru", "Emas", "Perak", "Hijau", "Kuning", "Ungu", "Coklat",
+                                     "Gelap", "Terang", "Besi", "Baja", "Batu", "Kayu", "Api", "Es", "Petir", "Angin"]
+                            
+                            kata_kunci = f"{random.choice(hewan)}{random.choice(warna)}"
+                            random.setstate(old_state)
+                        return f"{kata_kunci}{jam}"
+
+                    self.room_name = get_deterministic_room_name()
+                    
                     # No matching game found. 
-                    # HOST-ONLY CREATION: To absolutely guarantee 50 bots sync, ONLY the designated host
-                    # is allowed to create the room. Followers will simply wait.
-                    if self.is_host:
-                        game_id = self._try_create_game()
-                        if game_id:
-                            agent_id = self._register_in_game(game_id)
-                            if agent_id:
-                                self.last_game_name = self.room_name or f"{self.agent_name}'s Room"
-                                logger.joined_game("New Room", game_id, self.agent_name)
-                                return game_id, agent_id
-                    else:
-                        print("")
-                        logger.info(f"Follower waiting for Host to create room '{self.room_name or self.room_type}'...")
+                    # HOST-ONLY CREATION IS DISABLED PER USER RULE. Let Core Hosts create.
+                    print("")
+                    logger.info(f"Room '{self.room_name}' not found. Waiting for Core Host to create...")
+                    self._sleep_interruptible(random.uniform(5, 12))
 
                 # AGGRESSIVE (0.5s) polling for EVERYONE targeting a specific room
                 # to snipe free 100/100 rooms that fill in < 3 seconds
