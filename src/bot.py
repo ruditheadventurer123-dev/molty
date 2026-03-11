@@ -10,6 +10,8 @@ from src.strategy.decision_engine import engine as decision_engine
 from src.strategy import inventory, combat
 from src.ml.data_collector import collector as data_collector
 from src import logger
+import json
+import os
 
 try:
     from src.dashboard.dashboard_state import state as dashboard_state
@@ -265,6 +267,46 @@ class Bot:
             if is_winner:
                 dashboard_state.increment_wins()
             self._reset_dashboard_panel()
+            
+        # Log to win.txt if this agent is the winner
+        if is_winner:
+            self._log_win_to_file()
+
+    def _log_win_to_file(self):
+        """Append win record to win.txt along with wallet address and total wins."""
+        win_file = "win.txt"
+        db_file = "accounts_db.json"
+        wallet = "UNKNOWN_WALLET"
+        
+        # 1. Retrieve wallet address from accounts_db.json using agent_name
+        try:
+            if os.path.exists(db_file):
+                with open(db_file, 'r') as f:
+                    db = json.load(f)
+                    for account in db.get("accounts", []):
+                        if account.get("username") == self.agent_name:
+                            wallet = account.get("wallet", "UNKNOWN_WALLET")
+                            break
+        except Exception as e:
+            logger.error(f"Could not read wallet from db: {e}")
+
+        # 2. Append the win log
+        try:
+            # We will read first to calculate total wins for this specific wallet
+            total_wins = 1
+            if os.path.exists(win_file):
+                with open(win_file, 'r') as f:
+                    content = f.read()
+                    # Count how many times this wallet appears in the log
+                    total_wins += content.count(f"[{wallet}]")
+
+            # 3. Write to file append mode
+            with open(win_file, 'a') as f:
+                f.write(f"[{wallet}] | [{self.agent_name}]: Total Wins: {total_wins}\n")
+                
+            logger.success(f"Win log successfully written to {win_file} for {self.agent_name}")
+        except Exception as e:
+            logger.error(f"Failed to write win log to {win_file}: {e}")
 
     def _handle_death(self, state: GameState):
         """Handle agent death."""
